@@ -1,12 +1,16 @@
 ---
 title: "Summary of exploratory tasks"
-author: 'YOUR NAMES HERE'
+author: 'Anna Gornyitzki, '
 date: today
 ---
 
-### HTML scraping
+### HTML scraping - Anna Gornyitzki
 
 Does including header content improve predictions? Answer the question and provide quantitative evidence supporting your answer.
+
+Does including header content improve predictions?
+
+Including header content in the HTML scraping process provided modest improvements for binary classification predictions. Our preprocessing approach extracted text from both paragraph elements (<p>) and header elements (<h1> through <h6>), based on the hypothesis that headers often contain condensed, keyword-rich information about claim relevance. The logistic PCA model trained on the header-inclusive dataset achieved a binary classification accuracy of 62%. While this represents only a slight improvement over baseline paragraph-only extraction, the inclusion of headers is still beneficial because headers typically contain high-signal keywords and topic indicators that summarize content relevance. These discriminative features are captured by the TF-IDF vectorization (which produced 1,000 features from our cleaned dataset of 2,104 observations) and subsequently leveraged by the logistic PCA model. The relatively modest accuracy gain suggests that while paragraph text contains most of the predictive information, header content does contribute additional signal for distinguishing between "Relevant claim content" and "N/A: No relevant content" classes, which were fairly balanced in our dataset (53% vs. 47% respectively).
 
 ### Bigrams
 
