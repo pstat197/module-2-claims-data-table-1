@@ -176,8 +176,37 @@ dim(bigram_dtm_sub)
 length(y_sub)
 ```
 ```{r}
+stage1_df_sub <- data.frame(
+  y = y_sub,
+  Z_words_sub
+)
+
+set.seed(123)
+train_idx1_sub <- sample(seq_len(n_sub), size = floor(0.7 * n_sub))
+valid_idx1_sub <- setdiff(seq_len(n_sub), train_idx1_sub)
+
+stage1_train_sub <- stage1_df_sub[train_idx1_sub, ]
+stage1_valid_sub <- stage1_df_sub[valid_idx1_sub, ]
+
+stage1_fit_sub <- glm(
+  y ~ .,
+  data = stage1_train_sub,
+  family = binomial()
+)
+
+p_hat_stage1_sub <- predict(stage1_fit_sub, newdata = stage1_valid_sub, type = "response")
+
+acc_stage1_sub <- accuracy(stage1_df_sub$y[valid_idx1_sub], p_hat_stage1_sub)
+
+cat(sprintf("Stage 1 (words only, subset) accuracy:  %.3f\n", acc_stage1_sub))
+cat(sprintf("Stage 2 (words + bigrams) accuracy:     %.3f\n", acc_stage2))
+```
+
+
+```{r}
+
 # Number of bigram PCs
-K_bigrams <- 30
+K_bigrams <- 15
 
 bigram_pca <- irlba::prcomp_irlba(
   bigram_dtm_sub,
