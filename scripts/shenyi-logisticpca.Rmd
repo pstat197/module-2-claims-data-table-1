@@ -108,6 +108,11 @@ mean(test_pred == y_test)
 ```
 Using logistic principal component regression with 10 components, the model achieves an accuracy of 62.71% on the 20% hold-out test set.
 
-## Summary
-Task 2 — Logistic principal component regression
-We used the cleaned bag-of-words representation of the claims webpages and applied logistic PCA to reduce the dimensionality of the word features. Using 10 logistic principal components as predictors in a logistic regression model for the binary label bclass (Relevant vs. Not Relevant), we obtained an accuracy of 62.71% on a hold-out test set (20% of the data). 
+## Write-up
+In this stage of the project, the goal was to establish a baseline predictive model using logistic principal component regression and evaluate how well single-word token features can classify webpages as either containing relevant claim information or not. Using the cleaned dataset provided by the preprocessing step, the binary response variable (bclass) was converted into a numerical format (0/1), and the word-count variables were used as predictors.
+
+To evaluate performance fairly, the dataset was randomly split into a training partition (80%) and a hold-out test partition (20%). The logistic PCA model was then fit using the training data, and the fitted model was used to generate predictions on the test set. Accuracy was calculated by comparing predicted labels with the true test labels.
+
+The model achieved an estimated accuracy of approximately 62% on the hold-out test dataset. This suggests that while single-word token frequency contains some signal for identifying whether a webpage contains claim-related content, the predictive power is only moderately strong. This aligns with expectations, since single-token approaches ignore context, word order, and semantic relationships. As a result, certain webpages may share vocabulary but differ in meaning, leading to misclassification.
+
+Overall, this baseline result provides a useful reference point for comparison with more complex modeling strategies in later tasks, such as incorporating bigrams or neural networks. Subsequent approaches will help determine whether adding linguistic structure or more flexible modeling techniques can meaningfully improve prediction accuracy beyond the single-token logistic PCA baseline.
