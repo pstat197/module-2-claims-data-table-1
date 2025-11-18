@@ -18,12 +18,60 @@ Do bigrams capture additional information relevant to the classification of inte
 
 ### Neural net
 
-Summarize the neural network model you trained by desribing:
+For this part of the project, we built a neural network to classify claims as "Relevant" or "Not Relevant." After trying out a bunch of different parameters, the final model we built got an accuracy of 80.84% on our 20% test set. This was a large improvement over the 62.71% accuracy from the first (Task 1) logistic PCA model.
 
--   architecture
+Model Architecture
 
--   optimization and loss
+The final model was a neural network that we fed TF-IDF data to. It took a lot of experimenting to find a setup that was complex enough to learn the patterns but didn't rely on memorizing the training data (overfitting).
 
--   training epochs
+1. Preprocessing Layer:
+First, the model processes the raw text using a TextVectorization layer. We set this up with the following parameters:
 
--   predictive accuracy
+Vocabulary Size (max_tokens): 20,000
+
+Output Mode: tf_idf
+
+N-grams: 2 (This tells the layer to look at word pairs, or bigrams, which seemed to work best).
+
+Standardization: lower_and_strip_punctuation (to clean the text first).
+
+2. Network Structure:
+I used the Keras functional API to build the model. Here's the basic flow:
+
+Input: Takes in the raw text strings.
+
+Preprocessing: The text vectorization layer above.
+
+Hidden Layer 1: A Dense layer with 32 neurons (relu activation).
+
+Regularization 1: A Dropout layer set to 0.4 to help prevent overfitting.
+
+Hidden Layer 2: A Dense layer with 16 neurons (relu activation).
+
+Regularization 2: Another Dropout layer, also set to 0.4.
+
+Output Layer: A final Dense layer with 1 neuron and a sigmoid activation, which gives the final 0-to-1 probability.
+
+Training Configuration
+
+Finding the right training settings was the most important part of the experimentation. The settings below are what gave us our best score.
+
+Loss Function: binary_crossentropy (this is the standard one for a yes/no problem).
+
+Optimizer: optimizer_adam(learning_rate = 0.0005). Using the default Adam optimizer was okay, but dropping the learning rate to 0.0005 made the model train more carefully and gave us a better final result.
+
+Metrics: We tracked binary_accuracy.
+
+Epochs: 4. Looking at the training plots, the model hit its best validation score at 4 epochs and didn't get better after that.
+
+Batch Size: 32.
+
+Validation Split: I used 30% of the training data as a validation set to check for overfitting while the model was training.
+
+Results and Comparison
+
+Logistic PCA (Task 1): 62.71% accuracy
+
+Our Neural Network (Task 3): 80.84% accuracy
+
+Our final neural network was 18.13% more accurate than the baseline logistic PCA model. This is a huge improvement and shows that the neural network was much better at finding the complex patterns in the text data. The PCA model, which was limited to 10 components, seems to have lost too much information, while our neural network was able to learn a much more useful representation from the 20,000 text features. 
