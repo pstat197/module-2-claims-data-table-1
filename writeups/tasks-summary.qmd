@@ -1,6 +1,6 @@
 ---
 title: "Summary of exploratory tasks"
-author: 'Anna, Shenyi, Shahil (Tasks 1-3)'
+author: 'Anna, Shenyi, Shahil, Nathan (Tasks 1-3)'
 date: today
 ---
 

@@ -174,7 +174,10 @@ bigram_dtm_sub <- bigram_dtm[idx_bigram, , drop = FALSE]
 
 dim(bigram_dtm_sub)
 length(y_sub)
+
+n_sub <- length(y_sub)
 ```
+
 ```{r}
 stage1_df_sub <- data.frame(
   y = y_sub,
@@ -197,9 +200,6 @@ stage1_fit_sub <- glm(
 p_hat_stage1_sub <- predict(stage1_fit_sub, newdata = stage1_valid_sub, type = "response")
 
 acc_stage1_sub <- accuracy(stage1_df_sub$y[valid_idx1_sub], p_hat_stage1_sub)
-
-cat(sprintf("Stage 1 (words only, subset) accuracy:  %.3f\n", acc_stage1_sub))
-cat(sprintf("Stage 2 (words + bigrams) accuracy:     %.3f\n", acc_stage2))
 ```
 
 
@@ -261,5 +261,10 @@ y_valid_stage2 <- stage2_valid$y
 acc_stage2 <- accuracy(y_valid_stage2, p_hat_stage2)
 
 acc_stage2
+```
+
+```{r}
+cat(sprintf("Stage 1 (words only, subset) accuracy:  %.3f\n", acc_stage1_sub))
+cat(sprintf("Stage 2 (words + bigrams) accuracy:     %.3f\n", acc_stage2))
 ```
 
