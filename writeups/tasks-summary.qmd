@@ -1,6 +1,6 @@
 ---
 title: "Summary of exploratory tasks"
-author: 'Anna, Shenyi, Shahil (Tasks 1-3)'
+author: 'Anna, Shenyi, Shahil, Nathan (Tasks 1-3)'
 date: today
 ---
 
@@ -15,6 +15,12 @@ Including header content in the HTML scraping process provided modest improvemen
 ### Bigrams
 
 Do bigrams capture additional information relevant to the classification of interest? Answer the question, **briefly** describe what analysis you conducted to arrive at your answer, and provide quantitative evidence supporting your answer.
+
+In this task, we tested whether bigram features (two-word sequences) provide additional predictive information beyond single-word TF–IDF features. We first constructed a baseline logistic principal component regression model using only the word-level document–term matrix (Stage 1). On a held-out validation subset of the training pages, this word-only model achieved an accuracy of 73.6%.
+
+We then extracted bigrams from the cleaned HTML text, removed stopword pairs, kept the most frequent bigrams, and computed principal components of the resulting bigram matrix. These bigram PCs were combined with the Stage 1 predicted log-odds and used as predictors in a second logistic regression model (Stage 2). This two-stage model achieved a higher accuracy of 75.7% on the same validation subset.
+
+Overall, the increase from 73.6% to 75.7% suggests that bigrams capture additional contextual information beyond individual words. Incorporating bigram structure modestly but meaningfully improved predictive performance for identifying webpages containing relevant claim content.
 
 ### Neural net
 
