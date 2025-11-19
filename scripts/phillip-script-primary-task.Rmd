@@ -59,10 +59,6 @@ library(e1071)
 ```
 
 
-```{r}
-
-```
-
 
 ```{r}
 claims_data <- claims_clean %>% select(.id, bclass, mclass, text_clean)

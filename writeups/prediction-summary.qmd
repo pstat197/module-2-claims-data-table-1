@@ -1,37 +1,45 @@
 ---
 title: "Predictive modeling of claims status"
-author: 'YOUR NAMES HERE'
+author: 'Anna, Shenyi, Shahil, Nathan, Phillip'
 date: today
 ---
 
 ### Abstract
 
-Provide a 3-5 sentence summary of your work on the primary task. Indicate what input data was used, what method was used for binary class predictions, what method was used for multiclass predictions, and what estimated accuracies were achieved.
-
-> *Header and paragraph content was scraped from the raw webpages and processed into term frequencies of word tokens. For binary classification, a two-layer neural network yielded an estimated 81.4% accuracy; for multiclass classification, a support vector machine gave 78% accuracy.*
+For the primary task, I developed predictive models for both binary and multiclass webpage classification using the cleaned TF-IDF feature matrix derived from the project’s HTML corpus. Support Vector Machines (SVMs) with radial basis function (RBF) kernels were trained for both tasks. The binary classifier distinguished between pages containing claim-related content and those that did not, while the multiclass model predicted claim category. Using an 80/20 train-test split, the binary SVM achieved an estimated accuracy of 75.93**%**, while the multiclass SVM achieved an accuracy of 76.16**%**.
 
 ### Preprocessing
 
-In one paragraph lay out your preprocessing pipeline. No need to provide exact step-by-step detail; just give an overview of the main components:
-
--   what text content was extracted from HTML
-
--   how text was cleaned
-
--   how cleaned text was represented quantitatively
+The preprocessing pipeline began with extracting both paragraph text and header elements (h1–h6) from each webpage’s HTML source, ensuring that both body content and high-level structural cues were captured. The extracted text was then extensively cleaned by removing URLs, email addresses, HTML artifacts, special characters, numbers, and excess whitespace, followed by lowercasing and normalization. Finally, the cleaned corpus was transformed into a numerical representation using a TF-IDF vectorization procedure restricted to the top 1,000 unigram features, enabling efficient and consistent input for downstream machine learning models.
 
 ### Methods
 
-Describe your final predictive models. Include one paragraph with details on the binary classification approach, and one on the multiclass approach. Include for each:
+#### **Binary Classification**
 
--   what ML/statistical method was used
+For the binary task, I trained a Support Vector Machine (SVM) with a linear kernel using TF–IDF features extracted from the cleaned webpage text. The text was processed using a Keras `layer_text_vectorization` layer configured with whitespace tokenization, unigram features, and a 7,000-token vocabulary, which was adapted only on the training split before transforming both training and testing sets. An 80/20 split was created using `initial_split`, and the binary response was encoded directly from the `bclass` labels. The SVM was fit with `kernel = "linear"`, `cost = 5`, and `scale = FALSE`, hyperparameters chosen after brief experimentation for stable performance on the high-dimensional TF–IDF feature space. The final binary model was then retrained on the full training partition using the same configuration.
 
--   model specification and hyperparameter selection
+#### **Multiclass Classification**
 
--   training method
+For the multiclass prediction task, I used the same preprocessing pipeline and feature representation, applying the TF–IDF text vectorization layer adapted on the training text and transforming all documents into 7,000-dimensional unigram TF–IDF vectors. Using the same 80/20 split as the binary model for consistency, I fit a multiclass SVM using `e1071::svm` with a linear kernel, cost parameter of 5, and `scale = FALSE`, treating `mclass` as a factor response. The multiclass SVM uses a one-versus-one strategy internally, making it well-suited for distinguishing multiple claim categories across sparse text features. This configuration was kept fixed for the final model, which was retrained on the full training portion before generating predictions.
 
 ### Results
 
-Indicate the predictive accuracy of the binary classifications and the multiclass classifications. Provide a table for each, and report sensitivity, specificity, and accuracy.[^1]
+The binary SVM achieved strong overall performance on the held-out test partition, correctly classifying a substantial majority of pages and producing balanced sensitivity and specificity. The model reached an accuracy of **75.9%**, with a sensitivity of **77.2%** for detecting relevant claim content and a specificity of **74.4%** for identifying non-claim pages. The multiclass SVM performed comparably despite the increased task complexity, achieving an overall accuracy of **76.2%** across five claim categories. Macro-averaged sensitivity was **67.5%**, reflecting differing difficulty across classes, while macro-averaged specificity remained high at **92.8%**, indicating that the model was generally effective at avoiding false positives across categories.
 
-[^1]: Read [this article](https://yardstick.tidymodels.org/articles/multiclass.html) on multiclass averaging.
+```{r}
+binary_results <- tibble::tibble(
+Metric = c("Accuracy", "Sensitivity", "Specificity"),
+Value  = c("0.759", "0.772", "0.744")
+)
+binary_results
+
+```
+
+```{r}
+multiclass_results <- tibble::tibble(
+Metric = c("Accuracy", "Macro Sensitivity", "Macro Specificity"),
+Value  = c("0.762", "0.675", "0.928")
+)
+multiclass_results
+
+```
