@@ -1,0 +1,270 @@
+---
+title: "Nathan Analysis"
+author: "Nathan Kim"
+date: "2025-11-17"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(irlba)
+library(tidytext)
+```
+
+```{r}
+load("../data/claims-clean.RData")
+```
+
+```{r}
+claims_clean$bclass_num <- ifelse(
+  claims_clean$bclass == "Relevant claim content",
+  1L,
+  0L
+)
+
+y <- claims_clean$bclass_num
+
+drop_cols <- c(".id", "bclass", "bclass_num")
+word_cols <- setdiff(colnames(claims_clean), drop_cols)
+
+length(word_cols)
+```
+
+```{r}
+X_words <- as.matrix(claims_clean[, word_cols])
+
+dim(X_words)
+```
+
+```{r}
+set.seed(1)
+
+K_words <- 50
+
+word_pca <- prcomp_irlba(
+  X_words,
+  n = K_words,
+  center = TRUE,
+  scale. = TRUE
+)
+
+Z_words <- word_pca$x   # n x K_words matrix of word PCs
+
+# Train/validation split
+n <- nrow(Z_words)
+train_idx <- sample(seq_len(n), size = floor(0.7 * n))
+valid_idx <- setdiff(seq_len(n), train_idx)
+
+train_df <- data.frame(
+  y = y[train_idx],
+  Z_words[train_idx, , drop = FALSE]
+)
+
+valid_df <- data.frame(
+  y = y[valid_idx],
+  Z_words[valid_idx, , drop = FALSE]
+)
+
+word_pcr_fit <- glm(
+  y ~ .,
+  data = train_df,
+  family = binomial()
+)
+
+# Predicted probabilities and log-odds on validation
+p_hat_stage1 <- predict(word_pcr_fit, newdata = valid_df, type = "response")
+eta_stage1_all <- predict(word_pcr_fit, newdata = data.frame(y = y, Z_words), type = "link")
+
+# Accuracy function
+accuracy <- function(y_true, p_hat, threshold = 0.5) {
+  y_pred <- ifelse(p_hat >= threshold, 1L, 0L)
+  mean(y_pred == y_true)
+}
+
+acc_stage1 <- accuracy(y[valid_idx], p_hat_stage1)
+```
+
+```{r}
+load("../data/claims-raw.RData")
+```
+
+```{r}
+claims_text <- claims_raw %>%
+  select(.id, text_tmp) %>%
+  mutate(
+    # Remove script and style blocks entirely (including their contents)
+    text_clean = gsub("(?s)<script.*?</script>", " ", text_tmp, perl = TRUE),
+    text_clean = gsub("(?s)<style.*?</style>", " ", text_clean, perl = TRUE),
+
+    # Remove all remaining HTML tags like <p>, <div>, <span> etc.
+    text_clean = gsub("<[^>]+>", " ", text_clean),
+
+    # Remove HTML entities like &amp; &nbsp; etc (simple version)
+    text_clean = gsub("&[a-zA-Z]+;", " ", text_clean),
+
+    # Collapse multiple spaces/newlines into a single space
+    text_clean = gsub("\\s+", " ", text_clean),
+
+    # Trim leading/trailing spaces
+    text_clean = trimws(text_clean)
+  ) %>%
+  select(.id, text = text_clean)
+
+head(claims_text$text)
+```
+```{r}
+bigrams_df <- claims_text %>%
+  unnest_tokens(
+    output = "bigram",
+    input = text,
+    token = "ngrams",
+    n = 2
+  )
+
+data("stop_words")
+
+bigrams_sep <- bigrams_df %>%
+  separate(bigram, into = c("word1", "word2"), sep = " ", remove = FALSE) %>%
+  filter(
+    !word1 %in% stop_words$word,
+    !word2 %in% stop_words$word
+  )
+
+# Count bigram frequencies per document
+bigram_counts <- bigrams_sep %>%
+  count(.id, bigram)
+
+# Keep only the top N most common bigrams
+topN <- 2000
+
+top_bigrams <- bigram_counts %>%
+  group_by(bigram) %>%
+  summarise(n_total = sum(n), .groups = "drop") %>%
+  arrange(desc(n_total)) %>%
+  slice_head(n = topN)
+
+bigram_counts_filt <- bigram_counts %>%
+  semi_join(top_bigrams, by = "bigram")
+
+# Cast to sparse document–bigram matrix
+bigram_dtm <- bigram_counts_filt %>%
+  cast_sparse(row = .id, column = bigram, value = n)
+
+# Reorder rows to match claims_clean$.id (same as X_words, y)
+# IDs in cleaned (word) data and in bigram matrix
+ids_clean  <- as.character(claims_clean$.id)
+ids_bigram <- rownames(bigram_dtm)
+
+# Keep only IDs that appear in BOTH
+common_ids <- intersect(ids_clean, ids_bigram)
+
+length(ids_clean)      # total docs in claims_clean
+length(ids_bigram)     # docs that have ≥1 bigram
+length(common_ids)     # docs we will actually use for later
+# Indices for each side
+idx_clean  <- match(common_ids, ids_clean)
+idx_bigram <- match(common_ids, ids_bigram)
+
+# Subset word-based objects and bigram matrix to the common docs
+y_sub          <- y[idx_clean]
+Z_words_sub    <- Z_words[idx_clean, , drop = FALSE]
+eta_stage1_sub <- eta_stage1_all[idx_clean]
+bigram_dtm_sub <- bigram_dtm[idx_bigram, , drop = FALSE]
+
+dim(bigram_dtm_sub)
+length(y_sub)
+
+n_sub <- length(y_sub)
+```
+
+```{r}
+stage1_df_sub <- data.frame(
+  y = y_sub,
+  Z_words_sub
+)
+
+set.seed(123)
+train_idx1_sub <- sample(seq_len(n_sub), size = floor(0.7 * n_sub))
+valid_idx1_sub <- setdiff(seq_len(n_sub), train_idx1_sub)
+
+stage1_train_sub <- stage1_df_sub[train_idx1_sub, ]
+stage1_valid_sub <- stage1_df_sub[valid_idx1_sub, ]
+
+stage1_fit_sub <- glm(
+  y ~ .,
+  data = stage1_train_sub,
+  family = binomial()
+)
+
+p_hat_stage1_sub <- predict(stage1_fit_sub, newdata = stage1_valid_sub, type = "response")
+
+acc_stage1_sub <- accuracy(stage1_df_sub$y[valid_idx1_sub], p_hat_stage1_sub)
+```
+
+
+```{r}
+
+# Number of bigram PCs
+K_bigrams <- 15
+
+bigram_pca <- irlba::prcomp_irlba(
+  bigram_dtm_sub,
+  n = K_bigrams,
+  center = TRUE,
+  scale. = TRUE
+)
+
+Z_bigrams <- bigram_pca$x  # 2082 x K_bigrams
+
+# Clean any non-finite values in Z_bigrams (NA, Inf, -Inf) by setting them to 0
+Z_bigrams[!is.finite(Z_bigrams)] <- 0
+
+# Also clean eta_stage1_sub just in case
+eta_stage1_sub_clean <- eta_stage1_sub
+eta_stage1_sub_clean[!is.finite(eta_stage1_sub_clean)] <- 0
+
+# Build combined design: Stage 1 log-odds + bigram PCs
+stage2_df <- data.frame(
+  y          = as.numeric(y_sub),
+  eta_stage1 = as.numeric(eta_stage1_sub_clean),
+  Z_bigrams
+)
+
+n_sub <- nrow(stage2_df)
+
+set.seed(123)
+train_idx_sub <- sample(seq_len(n_sub), size = floor(0.7 * n_sub))
+valid_idx_sub <- setdiff(seq_len(n_sub), train_idx_sub)
+
+stage2_train <- stage2_df[train_idx_sub, ]
+stage2_valid <- stage2_df[valid_idx_sub, ]
+
+# Debug prints to make sure things look sane
+cat("nrow(stage2_train):", nrow(stage2_train), "\n")
+cat("summary(stage2_train$y):\n")
+print(summary(stage2_train$y))
+
+stage2_fit <- glm(
+  y ~ .,
+  data = stage2_train,
+  family = binomial()
+)
+
+# Predict on validation set
+p_hat_stage2 <- predict(stage2_fit, newdata = stage2_valid, type = "response")
+
+# Use the y from stage2_valid so it lines up with predictions
+y_valid_stage2 <- stage2_valid$y
+
+# reuse your accuracy() function
+acc_stage2 <- accuracy(y_valid_stage2, p_hat_stage2)
+
+acc_stage2
+```
+
+```{r}
+cat(sprintf("Stage 1 (words only, subset) accuracy:  %.3f\n", acc_stage1_sub))
+cat(sprintf("Stage 2 (words + bigrams) accuracy:     %.3f\n", acc_stage2))
+```
+

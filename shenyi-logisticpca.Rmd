@@ -1,0 +1,113 @@
+---
+title: "shenyi-logisticpca"
+author: "Shenyi Jiang"
+date: "2025-11-17"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+load("data/claims-clean.RData")
+ls()
+```
+
+```{r}
+# glimpse data cleaning
+library(tidyverse)
+glimpse(claims_clean)
+names(claims_clean)
+```
+
+
+```{r}
+library(logisticPCA)
+table(claims_clean$bclass)
+
+# change bclass to binary
+claims_df <- claims_clean %>%
+  mutate(
+    bclass_bin = if_else(
+      bclass == "Relevant claim content",
+      1L,
+      0L
+    )
+  )
+table(claims_df$bclass_bin)
+```
+
+```{r}
+# independent variable y (0/1)
+y <- claims_df$bclass_bin
+
+# matrix removes id bclass and bclass_bin
+X <- claims_df %>%
+  select(-.id, -bclass, -bclass_bin)
+X_matrix <- as.matrix(X)
+dim(X_matrix)
+```
+
+```{r}
+# train/test set
+set.seed(10162025)
+
+n <- nrow(X_matrix)
+train_idx <- sample(seq_len(n), size = floor(0.8*n))
+
+X_train <- X_matrix[train_idx,]
+X_test <- X_matrix[-train_idx,]
+
+y_train <- y[train_idx]
+y_test <- y[-train_idx]
+```
+
+```{r}
+# dimension reduction
+library(logisticPCA)
+
+logpca_fit <- logisticPCA(X_train, k=10, m=6)
+logpca_fit
+```
+
+```{r}
+# train scores
+train_scores <- logpca_fit$PCs
+dim(train_scores)
+
+test_scores <- predict(logpca_fit, X_test)
+```
+
+```{r}
+# scores data frame
+train_df <- as.data.frame(train_scores) %>%
+  mutate(y=factor(y_train))
+
+head(train_df)
+
+# logistic regression
+logit_mod <- glm(
+  y ~ .,
+  data = train_df,
+  family = binomial
+)
+summary(logit_mod)
+```
+
+```{r}
+# summarize
+test_df <- as.data.frame(test_scores)
+
+# predict probability
+test_prob <- predict(logit_mod, newdata=test_df, type="response")
+test_pred <- ifelse(test_prob >= 0.5, 1L, 0L)
+
+# accuracy
+mean(test_pred == y_test)
+```
+Using logistic principal component regression with 10 components, the model achieves an accuracy of 62.71% on the 20% hold-out test set.
+
+## Summary
+Task 2 — Logistic principal component regression
+We used the cleaned bag-of-words representation of the claims webpages and applied logistic PCA to reduce the dimensionality of the word features. Using 10 logistic principal components as predictors in a logistic regression model for the binary label bclass (Relevant vs. Not Relevant), we obtained an accuracy of 62.71% on a hold-out test set (20% of the data). 

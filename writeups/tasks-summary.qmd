@@ -1,25 +1,83 @@
 ---
 title: "Summary of exploratory tasks"
-author: 'YOUR NAMES HERE'
+author: 'Anna, Shenyi, Shahil, Nathan (Tasks 1-3)'
 date: today
 ---
 
-### HTML scraping
+### HTML scraping - Anna Gornyitzki
 
 Does including header content improve predictions? Answer the question and provide quantitative evidence supporting your answer.
+
+Does including header content improve predictions?
+
+Including header content in the HTML scraping process provided modest improvements for binary classification predictions. Our preprocessing approach extracted text from both paragraph elements (<p>) and header elements (<h1> through <h6>), based on the hypothesis that headers often contain condensed, keyword-rich information about claim relevance. The logistic PCA model trained on the header-inclusive dataset achieved a binary classification accuracy of 62%. While this represents only a slight improvement over baseline paragraph-only extraction, the inclusion of headers is still beneficial because headers typically contain high-signal keywords and topic indicators that summarize content relevance. These discriminative features are captured by the TF-IDF vectorization (which produced 1,000 features from our cleaned dataset of 2,104 observations) and subsequently leveraged by the logistic PCA model. The relatively modest accuracy gain suggests that while paragraph text contains most of the predictive information, header content does contribute additional signal for distinguishing between "Relevant claim content" and "N/A: No relevant content" classes, which were fairly balanced in our dataset (53% vs. 47% respectively).
 
 ### Bigrams
 
 Do bigrams capture additional information relevant to the classification of interest? Answer the question, **briefly** describe what analysis you conducted to arrive at your answer, and provide quantitative evidence supporting your answer.
 
+In this task, we tested whether bigram features (two-word sequences) provide additional predictive information beyond single-word TF–IDF features. We first constructed a baseline logistic principal component regression model using only the word-level document–term matrix (Stage 1). On a held-out validation subset of the training pages, this word-only model achieved an accuracy of 73.6%.
+
+We then extracted bigrams from the cleaned HTML text, removed stopword pairs, kept the most frequent bigrams, and computed principal components of the resulting bigram matrix. These bigram PCs were combined with the Stage 1 predicted log-odds and used as predictors in a second logistic regression model (Stage 2). This two-stage model achieved a higher accuracy of 75.7% on the same validation subset.
+
+Overall, the increase from 73.6% to 75.7% suggests that bigrams capture additional contextual information beyond individual words. Incorporating bigram structure modestly but meaningfully improved predictive performance for identifying webpages containing relevant claim content.
+
 ### Neural net
 
-Summarize the neural network model you trained by desribing:
+For this part of the project, we built a neural network to classify claims as "Relevant" or "Not Relevant." After trying out a bunch of different parameters, the final model we built got an accuracy of 80.84% on our 20% test set. This was a large improvement over the 62.71% accuracy from the first (Task 1) logistic PCA model.
 
--   architecture
+Model Architecture
 
--   optimization and loss
+The final model was a neural network that we fed TF-IDF data to. It took a lot of experimenting to find a setup that was complex enough to learn the patterns but didn't rely on memorizing the training data (overfitting).
 
--   training epochs
+1. Preprocessing Layer:
+First, the model processes the raw text using a TextVectorization layer. We set this up with the following parameters:
 
--   predictive accuracy
+Vocabulary Size (max_tokens): 20,000
+
+Output Mode: tf_idf
+
+N-grams: 2 (This tells the layer to look at word pairs, or bigrams, which seemed to work best).
+
+Standardization: lower_and_strip_punctuation (to clean the text first).
+
+2. Network Structure:
+I used the Keras functional API to build the model. Here's the basic flow:
+
+Input: Takes in the raw text strings.
+
+Preprocessing: The text vectorization layer above.
+
+Hidden Layer 1: A Dense layer with 32 neurons (relu activation).
+
+Regularization 1: A Dropout layer set to 0.4 to help prevent overfitting.
+
+Hidden Layer 2: A Dense layer with 16 neurons (relu activation).
+
+Regularization 2: Another Dropout layer, also set to 0.4.
+
+Output Layer: A final Dense layer with 1 neuron and a sigmoid activation, which gives the final 0-to-1 probability.
+
+Training Configuration
+
+Finding the right training settings was the most important part of the experimentation. The settings below are what gave us our best score.
+
+Loss Function: binary_crossentropy (this is the standard one for a yes/no problem).
+
+Optimizer: optimizer_adam(learning_rate = 0.0005). Using the default Adam optimizer was okay, but dropping the learning rate to 0.0005 made the model train more carefully and gave us a better final result.
+
+Metrics: We tracked binary_accuracy.
+
+Epochs: 4. Looking at the training plots, the model hit its best validation score at 4 epochs and didn't get better after that.
+
+Batch Size: 32.
+
+Validation Split: I used 30% of the training data as a validation set to check for overfitting while the model was training.
+
+Results and Comparison
+
+Logistic PCA (Task 1): 62.71% accuracy
+
+Our Neural Network (Task 3): 80.84% accuracy
+
+Our final neural network was 18.13% more accurate than the baseline logistic PCA model. This is a huge improvement and shows that the neural network was much better at finding the complex patterns in the text data. The PCA model, which was limited to 10 components, seems to have lost too much information, while our neural network was able to learn a much more useful representation from the 20,000 text features. 
